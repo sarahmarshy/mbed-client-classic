@@ -24,7 +24,7 @@
 #include "mbed-client/m2mconnectionsecurity.h"
 #include "nsdl-c/sn_nsdl.h"
 
-#include "pal_socket.h"
+#include "pal_network.h"
 
 
 class M2MConnectionSecurity;
@@ -64,6 +64,8 @@ public:
     * @brief Destructor
     */
     ~M2MConnectionHandlerPimpl();
+    
+    void start_timer(void);
 
     /**
     * @brief This binds the socket connection.
@@ -185,6 +187,8 @@ public:
     * @brief Sends data to socket through event loop.
     */
     void send_socket_data(uint8_t *data, uint16_t data_len);
+    
+    void send_receive_event(void);
 
 
 private:

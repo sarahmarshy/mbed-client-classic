@@ -19,19 +19,61 @@
 #include "mbed-client/m2msecurity.h"
 #include "mbed-client/m2mconnectionhandler.h"
 
+#include "pal.h"
 #include "pal_rtos.h"
 #include "pal_errors.h"
-#include "pal_common.h"
-#include "pal_socket.h"
+#include "pal_macros.h"
+#include "pal_network.h"
+#include "pal_plat_network.h"
 
+#include "eventOS_scheduler.h"
+#include "eventOS_event.h"
 
 #include "mbed-trace/mbed_trace.h"
 #include "mbed.h"
 
-#define timerID 1 //TODO: Check this value.
-#define mutexID 1 //TODO: Check this value.
-
 #define TRACE_GROUP "mClt"
+
+int8_t M2MConnectionHandlerPimpl::_tasklet_id = -1;
+
+static M2MConnectionHandlerPimpl *connection_handler = NULL;
+
+extern "C" void connection_event_handler(arm_event_s *event)
+{
+    tr_info("Connection event");
+    if(event->event_type != M2MConnectionHandlerPimpl::ESocketReadytoRead){
+        return;
+    }
+    
+	if(!connection_handler){
+	    return;
+	}
+    connection_handler->receive_handler();
+	
+}
+
+void M2MConnectionHandlerPimpl::send_receive_event(void)
+{
+    arm_event_s event;
+    event.receiver = M2MConnectionHandlerPimpl::_tasklet_id;
+    event.sender = 0;
+    event.event_type = ESocketReadytoRead;
+    event.data_ptr = NULL;
+    event.priority = ARM_LIB_HIGH_PRIORITY_EVENT;
+    eventOS_event_send(&event);
+
+}
+
+extern "C" void socket_event_handler(void)
+{
+
+    if(!connection_handler)
+    {
+        return;
+    }
+    connection_handler->send_receive_event();
+
+}
 
 M2MConnectionHandlerPimpl::M2MConnectionHandlerPimpl(M2MConnectionHandler* base, M2MConnectionObserver &observer,
                                                      M2MConnectionSecurity* sec,
@@ -50,21 +92,31 @@ M2MConnectionHandlerPimpl::M2MConnectionHandlerPimpl(M2MConnectionHandler* base,
  _server_port(0),
  _listen_port(0),
  _running(false),
- _net_iface(0)
+ _net_iface(0)//PAL_NET_DEFAULT_INTERFACE)
 {
 
-#ifndef PAL_NET_TCP_SUPPORT
+#ifndef PAL_NET_TCP_AND_TLS_SUPPORT
     if (is_tcp_connection()) {
         error("ConnectionHandler: TCP support not available.");
         return;
     }
 #endif
+    
+    if(PAL_SUCCESS != pal_init()){
+        tr_error("PAL init failed.");
+    }
 
     memset(&_address, 0, sizeof _address);
     
-    
-
     _running = true;
+    
+    connection_handler = this;
+    
+    eventOS_scheduler_mutex_wait();
+    if (M2MConnectionHandlerPimpl::_tasklet_id == -1) {
+        M2MConnectionHandlerPimpl::_tasklet_id = eventOS_event_handler_create(&connection_event_handler, ESocketIdle);
+    }
+    eventOS_scheduler_mutex_release();
 
 }
 
@@ -76,7 +128,6 @@ M2MConnectionHandlerPimpl::~M2MConnectionHandlerPimpl()
     	pal_close(&_socket);
         _socket = 0;
     }
-    _net_iface = 0;
     delete _security_impl;
     tr_debug("~M2MConnectionHandlerPimpl() - OUT");
 }
@@ -87,55 +138,72 @@ bool M2MConnectionHandlerPimpl::bind_connection(const uint16_t listen_port)
     return true;
 }
 
-
 bool M2MConnectionHandlerPimpl::resolve_server_address(const String& server_address,
                                                        const uint16_t server_port,
                                                        M2MConnectionObserver::ServerType server_type,
                                                        const M2MSecurity* security)
 {
     tr_debug("M2MConnectionHandlerPimpl::resolve_server_address()");
-    if (!_net_iface) {
-        return false;
-    }
+//    if (!_net_iface) {
+//        return false;
+//    }
     _security = security;
     _server_port = server_port;
     _server_type = server_type;
     _server_address = server_address;
     
     dns_handler();
+    
+    return true;
 }
 
 void M2MConnectionHandlerPimpl::dns_handler()
 {
 	
 	// addresses are now hardcoded but must be changed to use proper address + DNS.
-	uint8_t ipv4_addr[4] = {0x0,0x0,0x0,0x0};
+	uint8_t ipv4_addr[4] = {169,45,82,18};
 	uint8_t ipv6_addr[16] = {0x26,0x07,0xf0,0xd0,0x26,0x01,0x0,0x52,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x20};
 	
 	if (_network_stack == M2MInterface::LwIP_IPv4){
-		palSetSockAddrIPV6Addr(&_socket_address, ipv4_addr);
+	    tr_info("Using ipv4 destination");
+		palSetSockAddrIPV4Addr(&_socket_address, ipv4_addr);
 	}
 	else if(_network_stack == M2MInterface::LwIP_IPv6){
-		palSetSockAddrIPV4Addr(&_socket_address, ipv6_addr);
+	    tr_info("Using ipv6 destination");
+		palSetSockAddrIPV6Addr(&_socket_address, ipv6_addr);
 	}
 	else{
         _observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
         return;
 	}
 	
+	_server_port = /*PAL_HTONS*/(5684);
+	
+    _address._address = (void*)"169.45.82.18";
+    _address._length = strlen("169.45.82.18");
+    _address._port = 5684;
+    _address._stack = _network_stack;
+	
 	palSetSockAddrPort(&_socket_address, _server_port);
+    
+//    palSocketLength_t _socket_address_len;
+//	
+//	if(PAL_SUCCESS != pal_getAddressInfo(_server_address.c_str(), &_socket_address, &_socket_address_len)){
+//	    _observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
+//	    return;
+//	}
 
     close_socket();
     init_socket();
 
     if(is_tcp_connection()) {
-#ifdef PAL_NET_TCP_SUPPORT
+#ifdef PAL_NET_TCP_AND_TLS_SUPPORT
        tr_debug("resolve_server_address - Using TCP");
         if (pal_connect(_socket, &_socket_address, sizeof(_socket_address)) != PAL_SUCCESS) {
             _observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
             return;
         }
-#endif //PAL_NET_TCP_SUPPORT
+#endif //PAL_NET_TCP_AND_TLS_SUPPORT
     }
 
     _running = true;
@@ -203,7 +271,7 @@ bool M2MConnectionHandlerPimpl::send_data(uint8_t *data,
 
         if(is_tcp_connection()){
         	
-#ifdef PAL_NET_TCP_SUPPORT
+#ifdef PAL_NET_TCP_AND_TLS_SUPPORT
         	
             //We need to "shim" the length in front
             uint16_t d_len = data_len+4;
@@ -221,7 +289,7 @@ bool M2MConnectionHandlerPimpl::send_data(uint8_t *data,
             
             }
             
-#endif //PAL_NET_TCP_SUPPORT
+#endif //PAL_NET_TCP_AND_TLS_SUPPORT
             
         } else {
             ret = pal_sendTo(&_socket, data, data_len, &_socket_address, sizeof(_socket_address), &sent_len);
@@ -248,8 +316,6 @@ bool M2MConnectionHandlerPimpl::start_listening_for_data()
     _listening = true;
     _running = true;
     
-    pal_osTimerStart(timerID, 100);//TODO: use proper id
-    
     return true;
     
 }
@@ -258,8 +324,6 @@ void M2MConnectionHandlerPimpl::stop_listening()
 {
 	
     tr_debug("stop_listening()");
-    
-    pal_osTimerStop(timerID);//TODO: use proper id
     
     _listening = false;
     
@@ -278,9 +342,9 @@ int M2MConnectionHandlerPimpl::send_to_socket(const unsigned char *buf, size_t l
     tr_debug("send_to_socket len - %d", len);
     
     if(is_tcp_connection()) {
-#ifdef PAL_NET_TCP_SUPPORT
-    	status = pal_send(buf, len, &sent_len);
-#endif //PAL_NET_TCP_SUPPORT
+#ifdef PAL_NET_TCP_AND_TLS_SUPPORT
+    	status = pal_send(_socket, buf, len, &sent_len);
+#endif //PAL_NET_TCP_AND_TLS_SUPPORT
     } else {
     	status = pal_sendTo(_socket, buf, len, &_socket_address, sizeof(_socket_address), &sent_len);
     }
@@ -303,15 +367,22 @@ int M2MConnectionHandlerPimpl::receive_from_socket(unsigned char *buf, size_t le
     tr_debug("receive_from_socket");
     
     if(is_tcp_connection()) {
-#ifdef PAL_NET_TCP_SUPPORT
+#ifdef PAL_NET_TCP_AND_TLS_SUPPORT
     	status = pal_recv(_socket, buf, len, &recv_len);
-#endif //PAL_NET_TCP_SUPPORT
+#endif //PAL_NET_TCP_AND_TLS_SUPPORT
     } else {
     	status = pal_receiveFrom(_socket, buf, len, /*&address*/NULL, /*&address_len*/NULL, &recv_len);
     }
     
     if(status == PAL_SUCCESS){
     	return recv_len;
+    }
+    else if(status == PAL_ERR_SOCKET_WOULD_BLOCK || status == (-65536)){
+        return M2MConnectionHandler::CONNECTION_ERROR_WANTS_READ;
+    }
+    else
+    {
+        tr_info("PAL Socket returned: %d", status);
     }
     
     return (-1);
@@ -359,11 +430,6 @@ bool M2MConnectionHandlerPimpl::is_handshake_ongoing()
     return _is_handshaking;
 }
 
-void socket_timer_function(void const *argument)
-{
-	((M2MConnectionHandlerPimpl*)argument)->receive_handler();
-	pal_osTimerStart(timerID, 100);
-}
 
 void M2MConnectionHandlerPimpl::receive_handler()
 {
@@ -406,9 +472,9 @@ void M2MConnectionHandlerPimpl::receive_handler()
 			palStatus_t status;
 			
 			if(is_tcp_connection()){
-#ifdef PAL_NET_TCP_SUPPORT
+#ifdef PAL_NET_TCP_AND_TLS_SUPPORT
 				status = pal_recv(_socket, _recv_buffer, sizeof(_recv_buffer), &recv);
-#endif //PAL_NET_TCP_SUPPORT
+#endif //PAL_NET_TCP_AND_TLS_SUPPORT
 	
 			}else{
 				status = pal_receiveFrom(_socket, _recv_buffer, sizeof(_recv_buffer), NULL, NULL, &recv);
@@ -429,9 +495,9 @@ void M2MConnectionHandlerPimpl::receive_handler()
 	
 			} else {
 				
-#ifdef PAL_NET_TCP_SUPPORT
+#ifdef PAL_NET_TCP_AND_TLS_SUPPORT
 				
-				if( receive_length < 4 ){
+				if( recv < 4 ){
 					
 					_observer.socket_error(M2MConnectionHandler::SOCKET_READ_ERROR, true);
 					close_socket();
@@ -446,10 +512,10 @@ void M2MConnectionHandlerPimpl::receive_handler()
 				if(len > 0 && len < recv) {
 	
 					// Observer for TCP plain mode
-					_observer.data_available(buf+4, len, _address);
+					_observer.data_available(_recv_buffer+4, len, _address);
 	
 				}
-#endif //PAL_NET_TCP_SUPPORT
+#endif //PAL_NET_TCP_AND_TLS_SUPPORT
 				
 			}
 		
@@ -461,33 +527,34 @@ void M2MConnectionHandlerPimpl::receive_handler()
 
 void M2MConnectionHandlerPimpl::claim_mutex()
 {
-	while(PAL_ERR_RTOS_TIMEOUT == pal_osMutexWait(mutexID, 0xFFFFFFFF)); //TODO: use proper ID
+	eventOS_scheduler_mutex_wait();
 }
 
 void M2MConnectionHandlerPimpl::release_mutex()
 {
-	pal_osMutexRelease(mutexID); //TODO: use proper ID
+	eventOS_scheduler_mutex_release();
 }
-
+static palNetInterfaceInfo_t interface_info;
+static palIpV4Addr_t interface_address4 = {0,0,0,0};
+static palIpV6Addr_t interface_address6 = {0};
 void M2MConnectionHandlerPimpl::init_socket()
 {
     tr_debug("init_socket - IN");
     _is_handshaking = false;
     _running = true;
-    palSocketType socket_type = PAL_SOCK_DGRAM;
+    palSocketType_t socket_type = PAL_SOCK_DGRAM;
     palStatus_t status;
     palSocketDomain_t domain;
-    
-    
+    palSocketAddress_t bind_address;
     
     if(is_tcp_connection())
     {
-#ifdef PAL_NET_TCP_SUPPORT
-    	socket_type = SOCK_STREAM;
+#ifdef PAL_NET_TCP_AND_TLS_SUPPORT
+    	socket_type = PAL_SOCK_STREAM;
 #else
         _observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
         return;
-#endif //PAL_NET_TCP_SUPPORT
+#endif //PAL_NET_TCP_AND_TLS_SUPPORT
     	
     }
     
@@ -499,16 +566,56 @@ void M2MConnectionHandlerPimpl::init_socket()
     else{
     	domain = PAL_AF_UNSPEC;
     }
+    uint32_t interface_count;pal_getNumberOfNetInterfaces(&interface_count);
+    tr_debug("Interface count: %d",interface_count);
+    pal_getNetInterfaceInfo(_net_iface, &interface_info);
+    tr_debug("Interface name: %s",interface_info.interfaceName);
+    tr_debug("Interface no: %d", _net_iface);
+    
+    tr_debug("init_socket - port %d", _listen_port);
 
-   tr_debug("init_socket - port %d", _listen_port);
-   status = pal_socket(domain, socket_type, 1, _net_iface, &_socket);
+    status = pal_asynchronousSocket(domain, socket_type, 1, _net_iface, &socket_event_handler, &_socket);
 
 	if(PAL_SUCCESS != status) {
 		_observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
 		return;
 	}
+//	status = palGetSockAddrIPV4Addr(&interface_info.address, interface_address);
+//	
+//	if(PAL_SUCCESS != status) {
+//		_observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
+//		return;
+//	}
 	
-	status = pal_bind(_socket, &_socket_address, sizeof(_socket_address));
+	if(_network_stack == M2MInterface::LwIP_IPv4){
+	    tr_info("Binding to ipv4");
+        status = palSetSockAddrIPV4Addr(&bind_address, interface_address4);
+		
+        if(PAL_SUCCESS != status) {
+            _observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
+            return;
+        }
+	
+    }
+    else if(_network_stack == M2MInterface::LwIP_IPv6){
+        tr_info("Binding to ipv6");
+        status = palSetSockAddrIPV6Addr(&bind_address, interface_address6);
+        
+        if(PAL_SUCCESS != status) {
+            _observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
+            return;
+        } 
+        
+    }
+	
+	status = palSetSockAddrPort(&bind_address, /*PAL_HTONS*/(_listen_port));
+	
+	if(PAL_SUCCESS != status) {
+		pal_close(&_socket);
+		_observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
+	}
+	
+	status = pal_bind(_socket, &bind_address, sizeof(bind_address));
 	
 	if(PAL_SUCCESS != status) {
 		pal_close(&_socket);
@@ -537,7 +644,7 @@ void M2MConnectionHandlerPimpl::close_socket()
 void M2MConnectionHandlerPimpl::enable_keepalive()
 {
 #if MBED_CLIENT_TCP_KEEPALIVE_TIME
-#ifdef PAL_NET_TCP_SUPPORT
+#ifdef PAL_NET_TCP_AND_TLS_SUPPORT
     if(is_tcp_connection()) {
 
         int enable = 1;
