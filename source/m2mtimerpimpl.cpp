@@ -117,7 +117,7 @@ void M2MTimerPimpl::start_timer( uint64_t interval,
                                  M2MTimerObserver::Type type,
                                  bool single_shot)
 {
-    assert(interval <= INT32_MAX);
+    assert(interval <= UINT32_MAX);
 
     _dtls_type = false;
     _intermediate_interval = 0;
@@ -131,7 +131,7 @@ void M2MTimerPimpl::start_timer( uint64_t interval,
 
 void M2MTimerPimpl::start_dtls_timer(uint64_t intermediate_interval, uint64_t total_interval, M2MTimerObserver::Type type)
 {
-    assert(intermediate_interval <= INT32_MAX);
+    assert(intermediate_interval <= UINT32_MAX);
     assert(intermediate_interval <= total_interval);
 
     _dtls_type = true;
