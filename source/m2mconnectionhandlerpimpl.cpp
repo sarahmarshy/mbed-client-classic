@@ -437,6 +437,7 @@ void M2MConnectionHandlerPimpl::receive_handler()
 
     if(_is_handshaking){
     	receive_handshake_handler();
+    	return;
     }
 
     if(!_listening) {
