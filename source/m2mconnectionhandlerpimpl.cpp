@@ -178,7 +178,7 @@ void M2MConnectionHandlerPimpl::dns_handler()
         return;
     }
     // We select the first available interface for mbed Client
-    status =  pal_getNetInterfaceInfo(0, &interface_info);
+    status =  pal_getNetInterfaceInfo(_net_iface, &interface_info);
 
     _address._address = (void*)interface_info.address.addressData;
     _address._length = interface_info.addressSize;
@@ -372,8 +372,11 @@ void M2MConnectionHandlerPimpl::handle_connection_error(int error)
     _observer.socket_error(error);
 }
 
-void M2MConnectionHandlerPimpl::set_platform_network_handler(void */*handler*/)
+void M2MConnectionHandlerPimpl::set_platform_network_handler(void *handler)
 {
+    tr_debug("M2MConnectionHandlerPimpl::set_platform_network_handler");
+    palStatus_t result = pal_RegisterNetworkInterface(handler, &_net_iface);
+    tr_debug("M2MConnectionHandlerPimpl::set_platform_network_handler result %d , _net_iface %d", result, _net_iface);
 }
 
 void M2MConnectionHandlerPimpl::receive_handshake_handler()
@@ -513,10 +516,10 @@ void M2MConnectionHandlerPimpl::init_socket()
         tr_debug("Interface count: %d",interface_count);
         if(interface_count > 0) {
             // We select the first available interface for mbed Client
-            status =  pal_getNetInterfaceInfo(0, &interface_info);
+            status =  pal_getNetInterfaceInfo(_net_iface, &interface_info);
 
             if(PAL_SUCCESS == status) {
-                status = pal_asynchronousSocket(domain, socket_type, true, 0, &socket_event_handler, &_socket);
+                status = pal_asynchronousSocket(domain, socket_type, true, _net_iface, &socket_event_handler, &_socket);
                 if(PAL_SUCCESS == status) {
                     if(_network_stack == M2MInterface::LwIP_IPv4){
                         tr_info("Binding to ipv4");
