@@ -24,7 +24,7 @@
 #include "mbed-client/m2mconnectionsecurity.h"
 #include "nsdl-c/sn_nsdl.h"
 
-#include "Socket.h"
+#include "pal_network.h"
 
 
 class M2MConnectionSecurity;
@@ -192,7 +192,7 @@ private:
     /**
     * @brief Callback handler for socket events.
     */
-    void socket_event();
+    static void socket_event();
 
     /**
     * @brief Initialize mbed OS socket
@@ -224,8 +224,8 @@ private:
     M2MInterface::BindingMode                   _binding_mode;
     M2MInterface::NetworkStack                  _network_stack;
     M2MConnectionObserver::SocketAddress        _address;
-    unsigned char                               _address_buffer[NSAPI_IP_SIZE];
-    Socket                                      *_socket;
+    palSocketAddress_t                          _address_data;
+    palSocket_t                                 _socket;
     bool                                        _is_handshaking;
     bool                                        _listening;
     M2MConnectionObserver::ServerType           _server_type;
@@ -233,8 +233,7 @@ private:
     uint16_t                                    _listen_port;
     bool                                        _running;
     unsigned char                               _recv_buffer[BUFFER_LENGTH];
-    NetworkInterface                            *_net_iface;  //doesn't own
-    SocketAddress                               *_socket_address;
+    palSocketAddress_t                          _socket_address;
     static int8_t                                _tasklet_id;
     String                                      _server_address;
 
