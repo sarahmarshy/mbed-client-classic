@@ -26,6 +26,7 @@
 #include "eventOS_scheduler.h"
 #include "ns_hal_init.h"
 
+#define MBED_CLIENT_TIMER_TASKLET_INIT_EVENT 0 // Tasklet init occurs always when generating a tasklet
 #define MBED_CLIENT_TIMER_EVENT 10
 
 #ifdef MBED_CONF_MBED_CLIENT_EVENT_LOOP_SIZE
@@ -80,7 +81,7 @@ M2MTimerPimpl::M2MTimerPimpl(M2MTimerObserver& observer)
     ns_hal_init(NULL, MBED_CLIENT_EVENT_LOOP_SIZE, NULL, NULL);
     eventOS_scheduler_mutex_wait();
     if (_tasklet_id < 0) {
-        _tasklet_id = eventOS_event_handler_create(tasklet_func, 0 /*ARM_LIB_TASKLET_INIT_EVENT*/);
+        _tasklet_id = eventOS_event_handler_create(tasklet_func, MBED_CLIENT_TIMER_TASKLET_INIT_EVENT);
         assert(_tasklet_id >= 0);
     }
 
