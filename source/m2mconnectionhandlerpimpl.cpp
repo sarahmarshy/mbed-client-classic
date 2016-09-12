@@ -190,7 +190,7 @@ void M2MConnectionHandlerPimpl::dns_handler()
         return;
     }
     // We select the first available interface for mbed Client
-    status =  pal_getNetInterfaceInfo(0, &interface_info);
+    status =  pal_getNetInterfaceInfo(_net_iface, &interface_info);
 
     _address._address = (void*)interface_info.address.addressData;
     _address._length = interface_info.addressSize;
@@ -330,12 +330,10 @@ void M2MConnectionHandlerPimpl::send_socket_data(uint8_t *data,
             memmove(d+4, data, data_len);
             size_t sent;
             pal_send(_socket, d, d_len, &sent);
-            //ret = ((TCPSocket*)_socket)->send(d,d_len);
             free(d);
         }else {
             size_t sent;
             pal_sendTo(_socket, data, data_len, &_socket_address, sizeof(_socket_address), &sent);
-            //ret = ((UDPSocket*)_socket)->sendto(*_socket_address,data, data_len);
         }
         if (ret > 0) {
             success = true;
@@ -444,6 +442,8 @@ void M2MConnectionHandlerPimpl::handle_connection_error(int error)
 void M2MConnectionHandlerPimpl::set_platform_network_handler(void *handler)
 {
     tr_debug("M2MConnectionHandlerPimpl::set_platform_network_handler");
+    palStatus_t result = pal_RegisterNetworkInterface(handler, &_net_iface);
+    tr_debug("M2MConnectionHandlerPimpl::set_platform_network_handler result %d , _net_iface %d", result, _net_iface);
 }
 
 void M2MConnectionHandlerPimpl::receive_handshake_handler()
@@ -500,14 +500,12 @@ void M2MConnectionHandlerPimpl::receive_handler()
                 if (pal_recv(_socket, _recv_buffer, receive_length, &received) == PAL_SUCCESS) {
                     recv = received;
                 }
-                //recv = ((TCPSocket*)_socket)->recv(_recv_buffer, receive_length);
             }else{
                 palSocketAddress_t fromAddress;
                 palSocketLength_t fromLen = 0;
                 if (pal_receiveFrom(_socket, _recv_buffer, receive_length, &fromAddress, &fromLen, &received) == PAL_SUCCESS) {
                     recv = received;
                 }
-                //recv = ((UDPSocket*)_socket)->recvfrom(NULL,_recv_buffer, receive_length);
             }
             if (recv > 0) {
                 // Send data for processing.
@@ -553,8 +551,7 @@ void M2MConnectionHandlerPimpl::release_mutex()
     eventOS_scheduler_mutex_release();
 }
 
-static palIpV4Addr_t interface_address4 = {0,0,0,0};
-static palIpV6Addr_t interface_address6 = {0};
+
 void M2MConnectionHandlerPimpl::init_socket()
 {
     tr_debug("M2MConnectionHandlerPimpl::init_socket - IN");
@@ -564,6 +561,9 @@ void M2MConnectionHandlerPimpl::init_socket()
     palSocketAddress_t bind_address;
     palSocketDomain_t socket_domain = PAL_AF_UNSPEC;
     palSocketType_t socket_type = PAL_SOCK_DGRAM;;
+    palNetInterfaceInfo_t interface_info;
+    static palIpV4Addr_t interface_address4 = {0};
+    static palIpV6Addr_t interface_address6 = {0};
 
     if (_network_stack == M2MInterface::LwIP_IPv4) {
         socket_domain = PAL_AF_INET;
@@ -588,6 +588,22 @@ void M2MConnectionHandlerPimpl::init_socket()
     else {
         tr_debug("M2MConnectionHandlerPimpl::init_socket - Using UDP - port %d", _listen_port);
         socket_type = PAL_SOCK_DGRAM;
+    }
+
+    uint32_t interface_count = 0;
+    status = pal_getNumberOfNetInterfaces(&interface_count);
+    if(status == PAL_SUCCESS ) {
+        tr_debug("Interface count: %d",interface_count);
+        if(interface_count > 0) {
+            // We select the first available interface for mbed Client
+            status = pal_getNetInterfaceInfo(0, &interface_info);
+            status = pal_getNetInterfaceInfo(_net_iface, &interface_info);
+        }
+    }
+
+    if (status != PAL_SUCCESS || interface_count == 0) {
+        _observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
+        return;
     }
 
     status = pal_asynchronousSocket(socket_domain, socket_type, true, 0, (palAsyncSocketCallback_t)M2MConnectionHandlerPimpl::socket_event, &_socket);
