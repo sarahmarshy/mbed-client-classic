@@ -423,7 +423,11 @@ void M2MConnectionHandlerPimpl::handle_connection_error(int error)
 void M2MConnectionHandlerPimpl::set_platform_network_handler(void *handler)
 {
     tr_debug("set_platform_network_handler");
-    _net_iface = *(int*)handler;
+    if(PAL_SUCCESS !=pal_RegisterNetworkInterface(handler, (uint32_t*)&_net_iface))
+    {
+        tr_error("Interface registration failed.");
+    }
+    
 }
 
 void M2MConnectionHandlerPimpl::receive_handshake_handler()
