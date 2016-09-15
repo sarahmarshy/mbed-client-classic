@@ -68,7 +68,7 @@ extern "C" void connection_event_handler(arm_event_s *event)
             break;
             
     }
-	
+    
 }
 
 void M2MConnectionHandlerPimpl::send_receive_event(void)
@@ -144,7 +144,7 @@ M2MConnectionHandlerPimpl::~M2MConnectionHandlerPimpl()
     tr_debug("~M2MConnectionHandlerPimpl()");
     stop_listening();
     if (_socket) {//Is 0 a valid socket here? Hope not, so this will work and no need to modify.
-    	pal_close(&_socket);
+        pal_close(&_socket);
         _socket = 0;
     }
     delete _security_impl;
@@ -197,7 +197,7 @@ void M2MConnectionHandlerPimpl::dns_handler()
         return;
     }
     // We select the first available interface for mbed Client
-    status =  pal_getNetInterfaceInfo((uint32_t)_net_iface, &interface_info);
+    status =  pal_getNetInterfaceInfo(_net_iface, &interface_info);
 
     _address._address = (void*)interface_info.address.addressData;
     _address._length = interface_info.addressSize;
@@ -305,7 +305,7 @@ bool M2MConnectionHandlerPimpl::send_data(uint8_t *data,
 void M2MConnectionHandlerPimpl::send_socket_data(uint8_t *data, uint16_t data_len)
 {
 
-	size_t sent_len;
+    size_t sent_len;
     bool success = false;
     palStatus_t ret = PAL_ERR_GENERIC_FAILURE;
     
@@ -318,29 +318,29 @@ void M2MConnectionHandlerPimpl::send_socket_data(uint8_t *data, uint16_t data_le
     } else {
 
         if(is_tcp_connection()){
-        	
+            
 #ifdef PAL_NET_TCP_AND_TLS_SUPPORT
-        	
+            
             //We need to "shim" the length in front
             uint16_t d_len = data_len+4;
             uint8_t* d = (uint8_t*)malloc(data_len+4);
             
             if(d){
 
-				d[0] = (data_len >> 24 )& 0xff;
-				d[1] = (data_len >> 16 )& 0xff;
-				d[2] = (data_len >> 8 )& 0xff;
-				d[3] = data_len & 0xff;
-				memcpy(d + 4, data, data_len);
-				ret = pal_send(_socket, d, d_len, &sent_len);
-				free(d);
+                d[0] = (data_len >> 24 )& 0xff;
+                d[1] = (data_len >> 16 )& 0xff;
+                d[2] = (data_len >> 8 )& 0xff;
+                d[3] = data_len & 0xff;
+                memcpy(d + 4, data, data_len);
+                ret = pal_send(_socket, d, d_len, &sent_len);
+                free(d);
             
             }
             
 #endif //PAL_NET_TCP_AND_TLS_SUPPORT
             
         } else {
-            ret = pal_sendTo(&_socket, data, data_len, &_socket_address, sizeof(_socket_address), &sent_len);
+            ret = pal_sendTo(_socket, data, data_len, &_socket_address, sizeof(_socket_address), &sent_len);
         }
         if (ret == PAL_SUCCESS) {
             success = true;
@@ -351,13 +351,16 @@ void M2MConnectionHandlerPimpl::send_socket_data(uint8_t *data, uint16_t data_le
         _observer.socket_error(M2MConnectionHandler::SOCKET_SEND_ERROR, true);
         close_socket();
     }
+    else{
+        _observer.data_sent();
+    }
     
     
 }
 
 bool M2MConnectionHandlerPimpl::start_listening_for_data()
 {
-	
+    
     tr_debug("start_listening_for_data()");
 
     _listening = true;
@@ -369,7 +372,7 @@ bool M2MConnectionHandlerPimpl::start_listening_for_data()
 
 void M2MConnectionHandlerPimpl::stop_listening()
 {
-	
+    
     tr_debug("stop_listening()");
     
     _listening = false;
@@ -385,19 +388,19 @@ int M2MConnectionHandlerPimpl::send_to_socket(const unsigned char *buf, size_t l
 
     size_t sent_len = -1;
     palStatus_t status = PAL_ERR_GENERIC_FAILURE;
-	
+    
     tr_debug("send_to_socket len - %d", len);
     
     if(is_tcp_connection()) {
 #ifdef PAL_NET_TCP_AND_TLS_SUPPORT
-    	status = pal_send(_socket, buf, len, &sent_len);
+        status = pal_send(_socket, buf, len, &sent_len);
 #endif //PAL_NET_TCP_AND_TLS_SUPPORT
     } else {
-    	status = pal_sendTo(_socket, buf, len, &_socket_address, sizeof(_socket_address), &sent_len);
+        status = pal_sendTo(_socket, buf, len, &_socket_address, sizeof(_socket_address), &sent_len);
     }
     
     if(status == PAL_SUCCESS){
-    	return sent_len;
+        return sent_len;
     }
     
     return (-1);
@@ -414,7 +417,7 @@ int M2MConnectionHandlerPimpl::receive_from_socket(unsigned char *buf, size_t le
     
     if(is_tcp_connection()) {
 #ifdef PAL_NET_TCP_AND_TLS_SUPPORT
-    	status = pal_recv(_socket, buf, len, &recv_len);
+        status = pal_recv(_socket, buf, len, &recv_len);
 #endif //PAL_NET_TCP_AND_TLS_SUPPORT
     } else {
         palSocketAddress_t from;
@@ -423,7 +426,7 @@ int M2MConnectionHandlerPimpl::receive_from_socket(unsigned char *buf, size_t le
     }
     
     if(status == PAL_SUCCESS){
-    	return recv_len;
+        return recv_len;
     }
     else if(status == PAL_ERR_SOCKET_WOULD_BLOCK || status == (-65536)){
         return M2MConnectionHandler::CONNECTION_ERROR_WANTS_READ;
@@ -445,7 +448,7 @@ void M2MConnectionHandlerPimpl::handle_connection_error(int error)
 void M2MConnectionHandlerPimpl::set_platform_network_handler(void *handler)
 {
     tr_debug("set_platform_network_handler");
-    if(PAL_SUCCESS !=pal_RegisterNetworkInterface(handler, (uint32_t*)&_net_iface))
+    if(PAL_SUCCESS !=pal_RegisterNetworkInterface(handler, &_net_iface))
     {
         tr_error("Interface registration failed.");
     }
@@ -487,106 +490,111 @@ void M2MConnectionHandlerPimpl::receive_handler()
     tr_debug("receive_handler()");
 
     if(_is_handshaking){
-    	receive_handshake_handler();
-    	return;
+        receive_handshake_handler();
+        return;
     }
 
     if(!_listening) {
-    	return;
+        return;
     }
     
-	if( _use_secure_connection ){
-	    
-	    int rcv_size;
-		
-		do{
-		
-			rcv_size = _security_impl->read(_recv_buffer, sizeof(_recv_buffer));
-	
-			if(rcv_size > 0){
-				
-				_observer.data_available((uint8_t*)_recv_buffer,
-										 rcv_size, _address);
-				
-			} else if (M2MConnectionHandler::CONNECTION_ERROR_WANTS_READ != rcv_size && rcv_size < 0) {
-				
-				_observer.socket_error(M2MConnectionHandler::SOCKET_READ_ERROR, true);
-				close_socket();
-				return;
-				
-			}
-		
-		}while(M2MConnectionHandler::CONNECTION_ERROR_WANTS_READ != rcv_size);
-		
-	}else{
-	    
-	    size_t recv;
-	    palStatus_t status;
-		
-		do{
-			
-			if(is_tcp_connection()){
+    if( _use_secure_connection ){
+        
+        int rcv_size;
+        
+        do{
+        
+            rcv_size = _security_impl->read(_recv_buffer, sizeof(_recv_buffer));
+    
+            if(rcv_size > 0){
+                
+                _observer.data_available((uint8_t*)_recv_buffer,
+                                         rcv_size, _address);
+                
+            } else if (M2MConnectionHandler::CONNECTION_ERROR_WANTS_READ != rcv_size && rcv_size < 0) {
+                
+                _observer.socket_error(M2MConnectionHandler::SOCKET_READ_ERROR, true);
+                close_socket();
+                return;
+                
+            }
+        
+        }while(M2MConnectionHandler::CONNECTION_ERROR_WANTS_READ != rcv_size);
+        
+    }else{
+        
+        size_t recv;
+        palStatus_t status;
+        
+        do{
+            
+            if(is_tcp_connection()){
 #ifdef PAL_NET_TCP_AND_TLS_SUPPORT
-				status = pal_recv(_socket, _recv_buffer, sizeof(_recv_buffer), &recv);
+                status = pal_recv(_socket, _recv_buffer, sizeof(_recv_buffer), &recv);
 #endif //PAL_NET_TCP_AND_TLS_SUPPORT
-	
-			}else{
-				status = pal_receiveFrom(_socket, _recv_buffer, sizeof(_recv_buffer), NULL, NULL, &recv);
-			}
-			if (status != PAL_SUCCESS && status != PAL_ERR_SOCKET_WOULD_BLOCK) {
-				
-				_observer.socket_error(M2MConnectionHandler::SOCKET_READ_ERROR, true);
-				close_socket();
-				return;
-							
-			}
-			
-			tr_debug("data received, len: %d", recv);
-	
-			if(!is_tcp_connection()){ // Observer for UDP plain mode
-				
-				_observer.data_available((uint8_t*)_recv_buffer, recv, _address);
-	
-			} else {
-				
-#ifdef PAL_NET_TCP_AND_TLS_SUPPORT
-				
-				if( recv < 4 ){
-					
-					_observer.socket_error(M2MConnectionHandler::SOCKET_READ_ERROR, true);
-					close_socket();
-					return;
-					
-				}
-				
-				//We need to "shim" out the length from the front
-				uint32_t len = (_recv_buffer[0] << 24 & 0xFF000000) + (_recv_buffer[1] << 16 & 0xFF0000);
-				len += (_recv_buffer[2] << 8 & 0xFF00) + (_recv_buffer[3] & 0xFF);
-				
-				if(len > 0 && len < recv) {
-	
-					// Observer for TCP plain mode
-					_observer.data_available(_recv_buffer+4, len, _address);
-	
-				}
-#endif //PAL_NET_TCP_AND_TLS_SUPPORT
-				
-			}
-		
-		}while(status != PAL_ERR_SOCKET_WOULD_BLOCK);
+    
+            }else{
+                status = pal_receiveFrom(_socket, _recv_buffer, sizeof(_recv_buffer), NULL, NULL, &recv);
+            }
+            
+            if(status == PAL_ERR_SOCKET_WOULD_BLOCK){
+                return;
+            }
+            else if (status != PAL_SUCCESS) {
+                
+                _observer.socket_error(M2MConnectionHandler::SOCKET_READ_ERROR, true);
+                close_socket();
+                return;
+                            
+            }
 
-	}
+            
+            tr_debug("data received, len: %zu", recv);
+    
+            if(!is_tcp_connection()){ // Observer for UDP plain mode
+                
+                _observer.data_available((uint8_t*)_recv_buffer, recv, _address);
+    
+            } else {
+                
+#ifdef PAL_NET_TCP_AND_TLS_SUPPORT
+                
+                if( recv < 4 ){
+                    
+                    _observer.socket_error(M2MConnectionHandler::SOCKET_READ_ERROR, true);
+                    close_socket();
+                    return;
+                    
+                }
+                
+                //We need to "shim" out the length from the front
+                uint32_t len = (_recv_buffer[0] << 24 & 0xFF000000) + (_recv_buffer[1] << 16 & 0xFF0000);
+                len += (_recv_buffer[2] << 8 & 0xFF00) + (_recv_buffer[3] & 0xFF);
+                
+                if(len > 0 && len < recv) {
+    
+                    // Observer for TCP plain mode
+                    _observer.data_available(_recv_buffer+4, len, _address);
+    
+                }
+#endif //PAL_NET_TCP_AND_TLS_SUPPORT
+                
+            }
+        
+        }while(status != PAL_ERR_SOCKET_WOULD_BLOCK);
+
+    }
         
 }
 
 void M2MConnectionHandlerPimpl::claim_mutex()
 {
-	eventOS_scheduler_mutex_wait();
+    eventOS_scheduler_mutex_wait();
 }
 
 void M2MConnectionHandlerPimpl::release_mutex()
 {
-	eventOS_scheduler_mutex_release();
+    eventOS_scheduler_mutex_release();
 }
 
 static palNetInterfaceInfo_t interface_info;
@@ -606,21 +614,21 @@ bool M2MConnectionHandlerPimpl::init_socket()
     if(is_tcp_connection())
     {
 #ifdef PAL_NET_TCP_AND_TLS_SUPPORT
-    	socket_type = PAL_SOCK_STREAM;
+        socket_type = PAL_SOCK_STREAM;
 #else
         _observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
         return;
 #endif //PAL_NET_TCP_AND_TLS_SUPPORT
-    	
+        
     }
     
     if(_network_stack == M2MInterface::LwIP_IPv4){
-    	domain = PAL_AF_INET;
+        domain = PAL_AF_INET;
     }else if(_network_stack == M2MInterface::LwIP_IPv6){
-    	domain = PAL_AF_INET6;
+        domain = PAL_AF_INET6;
     }
     else{
-    	domain = PAL_AF_UNSPEC;
+        domain = PAL_AF_UNSPEC;
     }
     uint32_t interface_count;pal_getNumberOfNetInterfaces(&interface_count);
     tr_debug("Interface count: %d",interface_count);
@@ -632,21 +640,21 @@ bool M2MConnectionHandlerPimpl::init_socket()
 
     status = pal_asynchronousSocket(domain, socket_type, 1, _net_iface, &socket_event_handler, &_socket);
 
-	if(PAL_SUCCESS != status) {
-		_observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
+    if(PAL_SUCCESS != status) {
+        _observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
         return false;
-	}
-	
-	if(_network_stack == M2MInterface::LwIP_IPv4){
+    }
+    
+    if(_network_stack == M2MInterface::LwIP_IPv4){
         palSetSockAddrIPV4Addr(&bind_address, interface_address4);
     }
     else if(_network_stack == M2MInterface::LwIP_IPv6){
         palSetSockAddrIPV6Addr(&bind_address, interface_address6);
     }
-	
+    
     palSetSockAddrPort(&bind_address, _listen_port);
     pal_bind(_socket, &bind_address, sizeof(bind_address));
-	
+    
     tr_debug("init_socket - OUT");
     return true;
 }
@@ -681,4 +689,3 @@ void M2MConnectionHandlerPimpl::enable_keepalive()
 #endif
 #endif
 }
-

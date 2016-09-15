@@ -236,7 +236,7 @@ private:
     uint16_t                                    _listen_port;
     bool                                        _running;
     unsigned char                               _recv_buffer[BUFFER_LENGTH];
-    int                                         _net_iface;  //doesn't own
+    uint32_t                                    _net_iface;
     palSocketAddress_t                          _socket_address;
     static int8_t                               _tasklet_id;
     String                                      _server_address;
