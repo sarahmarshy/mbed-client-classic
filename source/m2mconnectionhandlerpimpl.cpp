@@ -218,7 +218,9 @@ void M2MConnectionHandlerPimpl::dns_handler()
 
 
     close_socket();
-    init_socket();
+    if(!init_socket()) {
+        return;
+    }
 
     if(is_tcp_connection()) {
 #ifdef PAL_NET_TCP_AND_TLS_SUPPORT
@@ -415,7 +417,9 @@ int M2MConnectionHandlerPimpl::receive_from_socket(unsigned char *buf, size_t le
     	status = pal_recv(_socket, buf, len, &recv_len);
 #endif //PAL_NET_TCP_AND_TLS_SUPPORT
     } else {
-    	status = pal_receiveFrom(_socket, buf, len, NULL, NULL, &recv_len);
+        palSocketAddress_t from;
+        palSocketLength_t length;
+        status = pal_receiveFrom(_socket, buf, len, &from, &length, &recv_len);
     }
     
     if(status == PAL_SUCCESS){
@@ -589,7 +593,7 @@ static palNetInterfaceInfo_t interface_info;
 static palIpV4Addr_t interface_address4 = {0,0,0,0};
 static palIpV6Addr_t interface_address6 = {0};
 
-void M2MConnectionHandlerPimpl::init_socket()
+bool M2MConnectionHandlerPimpl::init_socket()
 {
     tr_debug("init_socket - IN");
     _is_handshaking = false;
@@ -630,45 +634,21 @@ void M2MConnectionHandlerPimpl::init_socket()
 
 	if(PAL_SUCCESS != status) {
 		_observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
-		return;
+        return false;
 	}
 	
 	if(_network_stack == M2MInterface::LwIP_IPv4){
-
-        status = palSetSockAddrIPV4Addr(&bind_address, interface_address4);
-		
-        if(PAL_SUCCESS != status) {
-            _observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
-            return;
-        }
-	
+        palSetSockAddrIPV4Addr(&bind_address, interface_address4);
     }
     else if(_network_stack == M2MInterface::LwIP_IPv6){
-
-        status = palSetSockAddrIPV6Addr(&bind_address, interface_address6);
-        
-        if(PAL_SUCCESS != status) {
-            _observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
-            return;
-        } 
-        
+        palSetSockAddrIPV6Addr(&bind_address, interface_address6);
     }
 	
-	status = palSetSockAddrPort(&bind_address, _listen_port);
+    palSetSockAddrPort(&bind_address, _listen_port);
+    pal_bind(_socket, &bind_address, sizeof(bind_address));
 	
-	if(PAL_SUCCESS != status) {
-		pal_close(&_socket);
-		_observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
-	}
-	
-	status = pal_bind(_socket, &bind_address, sizeof(bind_address));
-	
-	if(PAL_SUCCESS != status) {
-		pal_close(&_socket);
-		_observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
-	}
-
     tr_debug("init_socket - OUT");
+    return true;
 }
 
 bool M2MConnectionHandlerPimpl::is_tcp_connection()

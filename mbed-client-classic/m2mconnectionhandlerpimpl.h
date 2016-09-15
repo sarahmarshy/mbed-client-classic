@@ -201,7 +201,7 @@ private:
     /**
     * @brief Initialize mbed OS socket
     */
-    void init_socket();
+    bool init_socket();
 
     /**
     * @brief Check socket type
