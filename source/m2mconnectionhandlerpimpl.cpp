@@ -210,10 +210,10 @@ void M2MConnectionHandlerPimpl::dns_handler()
         _observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
         return;
     }
-    palSetSockAddrPort(&_socket_address, _server_port);
+    pal_setSockAddrPort(&_socket_address, _server_port);
 
     palIpV4Addr_t ipV4Addr;
-    palGetSockAddrIPV4Addr(&_socket_address,ipV4Addr);
+    pal_getSockAddrIPV4Addr(&_socket_address,ipV4Addr);
     tr_debug("IP Address %s",tr_array(ipV4Addr,4));
 
 
@@ -448,7 +448,7 @@ void M2MConnectionHandlerPimpl::handle_connection_error(int error)
 void M2MConnectionHandlerPimpl::set_platform_network_handler(void *handler)
 {
     tr_debug("set_platform_network_handler");
-    if(PAL_SUCCESS !=pal_RegisterNetworkInterface(handler, &_net_iface))
+    if(PAL_SUCCESS != pal_registerNetworkInterface(handler, &_net_iface))
     {
         tr_error("Interface registration failed.");
     }
@@ -646,13 +646,13 @@ bool M2MConnectionHandlerPimpl::init_socket()
     }
     
     if(_network_stack == M2MInterface::LwIP_IPv4){
-        palSetSockAddrIPV4Addr(&bind_address, interface_address4);
+        pal_setSockAddrIPV4Addr(&bind_address, interface_address4);
     }
     else if(_network_stack == M2MInterface::LwIP_IPv6){
-        palSetSockAddrIPV6Addr(&bind_address, interface_address6);
+        pal_setSockAddrIPV6Addr(&bind_address, interface_address6);
     }
     
-    palSetSockAddrPort(&bind_address, _listen_port);
+    pal_setSockAddrPort(&bind_address, _listen_port);
     pal_bind(_socket, &bind_address, sizeof(bind_address));
     
     tr_debug("init_socket - OUT");
