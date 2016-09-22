@@ -284,22 +284,21 @@ bool M2MConnectionHandlerPimpl::send_data(uint8_t *data,
         return false;
     }
 
-    uint8_t *buffer = (uint8_t*)malloc(data_len);
-    if(!buffer) {
+    event.data_ptr = (uint8_t*)malloc(data_len);
+    if(!event.data_ptr) {
         return false;
     }
-    memcpy(buffer, data, data_len);
+    memcpy(event.data_ptr, data, data_len);
     
     event.receiver = M2MConnectionHandlerPimpl::_tasklet_id;
     event.sender = 0;
     event.event_type = ESocketSend;
-    event.data_ptr = buffer;
     event.event_data = data_len;
     event.priority = ARM_LIB_HIGH_PRIORITY_EVENT;
 
     if (eventOS_event_send(&event) != 0) {
         // Event push failed, free the buffer
-        free(buffer);
+        free(event.data_ptr);
         return false;
     }
 
