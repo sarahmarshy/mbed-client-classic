@@ -290,7 +290,6 @@ bool M2MConnectionHandlerPimpl::send_data(uint8_t *data,
     }
     memcpy(buffer, data, data_len);
     
-
     event.receiver = M2MConnectionHandlerPimpl::_tasklet_id;
     event.sender = 0;
     event.event_type = ESocketSend;
@@ -298,7 +297,13 @@ bool M2MConnectionHandlerPimpl::send_data(uint8_t *data,
     event.event_data = data_len;
     event.priority = ARM_LIB_HIGH_PRIORITY_EVENT;
 
-    return !eventOS_event_send(&event);
+    if (eventOS_event_send(&event) != 0) {
+        // Event push failed, free the buffer
+        free(buffer);
+        return false;
+    }
+
+    return true;
 
 }
 
