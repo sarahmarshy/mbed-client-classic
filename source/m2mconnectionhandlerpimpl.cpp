@@ -185,7 +185,6 @@ bool M2MConnectionHandlerPimpl::resolve_server_address(const String& server_addr
 void M2MConnectionHandlerPimpl::dns_handler()
 {
     palStatus_t status;
-    palNetInterfaceInfo_t interface_info;
     uint32_t interface_count;
     status = pal_getNumberOfNetInterfaces(&interface_count);
     if(PAL_SUCCESS != status ) {
@@ -217,7 +216,7 @@ void M2MConnectionHandlerPimpl::dns_handler()
         tr_debug("IP Address %s",tr_array(ipV4Addr,4));
 
         _address._address = (void*)ipV4Addr;
-        _address._length = 4;
+        _address._length = PAL_IPV4_ADDRESS_SIZE;
         _address._port = _server_port;
         _address._stack = _network_stack;
 
@@ -234,7 +233,7 @@ void M2MConnectionHandlerPimpl::dns_handler()
         tr_debug("IP Address %s",tr_array(ipV6Addr,sizeof(ipV6Addr)));
 
         _address._address = (void*)ipV6Addr;
-        _address._length = sizeof(ipV6Addr);
+        _address._length = PAL_IPV6_ADDRESS_SIZE;
         _address._port = _server_port;
         _address._stack = _network_stack;
 
