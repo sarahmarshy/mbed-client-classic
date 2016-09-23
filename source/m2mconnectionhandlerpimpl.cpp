@@ -196,13 +196,6 @@ void M2MConnectionHandlerPimpl::dns_handler()
         _observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
         return;
     }
-    // We select the first available interface for mbed Client
-    status =  pal_getNetInterfaceInfo(_net_iface, &interface_info);
-
-    _address._address = (void*)interface_info.address.addressData;
-    _address._length = interface_info.addressSize;
-    _address._port = _server_port;
-    _address._stack = _network_stack;
 
     palSocketLength_t _socket_address_len;
 
@@ -210,13 +203,16 @@ void M2MConnectionHandlerPimpl::dns_handler()
         _observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
         return;
     }
-
     pal_setSockAddrPort(&_socket_address, _server_port);
 
     if(_network_stack == M2MInterface::LwIP_IPv4){
 
         palIpV4Addr_t ipV4Addr;
-        pal_getSockAddrIPV4Addr(&_socket_address, ipV4Addr);
+
+        if(PAL_SUCCESS != pal_getSockAddrIPV4Addr(&_socket_address,ipV4Addr)){
+            _observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
+            return;
+        }
 
         tr_debug("IP Address %s",tr_array(ipV4Addr,4));
 
@@ -229,7 +225,11 @@ void M2MConnectionHandlerPimpl::dns_handler()
     else if(_network_stack == M2MInterface::LwIP_IPv6){
 
         palIpV4Addr_t ipV6Addr;
-        pal_getSockAddrIPV4Addr(&_socket_address, ipV6Addr);
+
+        if(PAL_SUCCESS != pal_getSockAddrIPV4Addr(&_socket_address,ipV6Addr)){
+            _observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
+            return;
+        }
 
         tr_debug("IP Address %s",tr_array(ipV6Addr,sizeof(ipV6Addr)));
 
@@ -239,6 +239,7 @@ void M2MConnectionHandlerPimpl::dns_handler()
         _address._stack = _network_stack;
 
     }
+
 
 
     close_socket();
