@@ -210,11 +210,35 @@ void M2MConnectionHandlerPimpl::dns_handler()
         _observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
         return;
     }
+
     pal_setSockAddrPort(&_socket_address, _server_port);
 
-    palIpV4Addr_t ipV4Addr;
-    pal_getSockAddrIPV4Addr(&_socket_address,ipV4Addr);
-    tr_debug("IP Address %s",tr_array(ipV4Addr,4));
+    if(_network_stack == M2MInterface::LwIP_IPv4){
+
+        palIpV4Addr_t ipV4Addr;
+        pal_getSockAddrIPV4Addr(&_socket_address, ipV4Addr);
+
+        tr_debug("IP Address %s",tr_array(ipV4Addr,4));
+
+        _address._address = (void*)ipV4Addr;
+        _address._length = 4;
+        _address._port = _server_port;
+        _address._stack = _network_stack;
+
+    }
+    else if(_network_stack == M2MInterface::LwIP_IPv6){
+
+        palIpV4Addr_t ipV6Addr;
+        pal_getSockAddrIPV4Addr(&_socket_address, ipV6Addr);
+
+        tr_debug("IP Address %s",tr_array(ipV6Addr,sizeof(ipV6Addr)));
+
+        _address._address = (void*)ipV6Addr;
+        _address._length = sizeof(ipV6Addr);
+        _address._port = _server_port;
+        _address._stack = _network_stack;
+
+    }
 
 
     close_socket();
