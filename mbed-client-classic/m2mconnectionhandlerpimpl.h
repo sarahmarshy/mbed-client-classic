@@ -228,6 +228,11 @@ private:
     M2MInterface::BindingMode                   _binding_mode;
     M2MInterface::NetworkStack                  _network_stack;
     M2MConnectionObserver::SocketAddress        _address;
+
+    // _address._address will point to one of these two
+    palIpV4Addr_t                               _ipV4Addr; 
+    palIpV6Addr_t                               _ipV6Addr;
+
     palSocket_t                                 _socket;
     bool                                        _is_handshaking;
     bool                                        _listening;
