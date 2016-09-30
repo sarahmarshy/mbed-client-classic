@@ -24,7 +24,7 @@
 #include "mbed-client/m2mconnectionsecurity.h"
 #include "nsdl-c/sn_nsdl.h"
 
-#include "Socket.h"
+#include "pal_network.h"
 
 
 class M2MConnectionSecurity;
@@ -64,6 +64,8 @@ public:
     * @brief Destructor
     */
     ~M2MConnectionHandlerPimpl();
+    
+    void start_timer(void);
 
     /**
     * @brief This binds the socket connection.
@@ -185,6 +187,8 @@ public:
     * @brief Sends data to socket through event loop.
     */
     void send_socket_data(uint8_t *data, uint16_t data_len);
+    
+    void send_receive_event(void);
 
 
 private:
@@ -197,7 +201,7 @@ private:
     /**
     * @brief Initialize mbed OS socket
     */
-    void init_socket();
+    bool init_socket();
 
     /**
     * @brief Check socket type
@@ -224,8 +228,7 @@ private:
     M2MInterface::BindingMode                   _binding_mode;
     M2MInterface::NetworkStack                  _network_stack;
     M2MConnectionObserver::SocketAddress        _address;
-    unsigned char                               _address_buffer[NSAPI_IP_SIZE];
-    Socket                                      *_socket;
+    palSocket_t                                 _socket;
     bool                                        _is_handshaking;
     bool                                        _listening;
     M2MConnectionObserver::ServerType           _server_type;
@@ -233,9 +236,9 @@ private:
     uint16_t                                    _listen_port;
     bool                                        _running;
     unsigned char                               _recv_buffer[BUFFER_LENGTH];
-    NetworkInterface                            *_net_iface;  //doesn't own
-    SocketAddress                               *_socket_address;
-    static int8_t                                _tasklet_id;
+    uint32_t                                    _net_iface;
+    palSocketAddress_t                          _socket_address;
+    static int8_t                               _tasklet_id;
     String                                      _server_address;
 
 friend class Test_M2MConnectionHandlerPimpl;
