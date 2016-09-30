@@ -18,7 +18,6 @@
 #define M2M_TIMER_PIMPL_H__
 
 #include "ns_types.h"
-
 #include "mbed-client/m2mtimerobserver.h"
 
 class M2MTimerPimpl {
@@ -32,21 +31,21 @@ private:
 public:
 
     /**
-    * Constructor.
-    */
+     * Constructor.
+     */
     M2MTimerPimpl(M2MTimerObserver& _observer);
 
     /**
-    * Destructor.
-    */
+     * Destructor.
+     */
     virtual ~M2MTimerPimpl();
 
     /**
      * Starts timer
      * @param interval Timer's interval in milliseconds
-    * @param single_shot defines if timer is ticked
-    * once or is it restarted everytime timer is expired.
-    */
+     * @param single_shot defines if timer is ticked
+     * once or is it restarted everytime timer is expired.
+     */
     void start_timer(uint64_t interval, M2MTimerObserver::Type type, bool single_shot = true);
 
     /**
@@ -58,14 +57,14 @@ public:
     void start_dtls_timer(uint64_t intermediate_interval, uint64_t total_interval, M2MTimerObserver::Type type);
 
     /**
-    * Stops timer.
-    * This cancels the ongoing timer.
-    */
+     * Stops timer.
+     * This cancels the ongoing timer.
+     */
     void stop_timer();
 
     /**
-    * Callback function for timer completion.
-    */
+     * Callback function for timer completion.
+     */
     void timer_expired();
 
     /**
@@ -80,7 +79,22 @@ public:
      */
     bool is_total_interval_passed();
 
+    /**
+     * @brief Start long period timer
+     */
+    void start_still_left_timer();
+
+    /**
+     * @brief Get timer id
+     * @return Timer id
+     */
     inline int8_t get_timer_id() const;
+
+    /**
+     * @brief Get still left time
+     * @return Time left in milliseconds
+     */
+    uint64_t get_still_left_time() const;
 
 private:
 
@@ -95,6 +109,7 @@ private:
 
     uint64_t            _intermediate_interval;
     uint64_t            _total_interval;
+    uint64_t            _still_left;
     uint8_t             _status;
     bool                _dtls_type;
 
@@ -114,3 +129,4 @@ inline int8_t M2MTimerPimpl::get_timer_id() const
 }
 
 #endif //M2M_TIMER_PIMPL_H__
+
