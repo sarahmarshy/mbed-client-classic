@@ -206,40 +206,38 @@ void M2MConnectionHandlerPimpl::dns_handler()
 
     if(_network_stack == M2MInterface::LwIP_IPv4){
 
-        palIpV4Addr_t ipV4Addr;
 
-        if(PAL_SUCCESS != pal_getSockAddrIPV4Addr(&_socket_address,ipV4Addr)){
+        if(PAL_SUCCESS != pal_getSockAddrIPV4Addr(&_socket_address,_ipV4Addr)){
             _observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
             return;
         }
 
-        tr_debug("IP Address %s",tr_array(ipV4Addr,4));
-
-        _address._address = (void*)ipV4Addr;
+        tr_debug("IP Address %s",tr_array(_ipV4Addr, 4));
+        
+        _address._address = (void*)_ipV4Addr;
         _address._length = PAL_IPV4_ADDRESS_SIZE;
         _address._port = _server_port;
         _address._stack = _network_stack;
-
     }
     else if(_network_stack == M2MInterface::LwIP_IPv6){
 
-        palIpV4Addr_t ipV6Addr;
-
-        if(PAL_SUCCESS != pal_getSockAddrIPV4Addr(&_socket_address,ipV6Addr)){
+        if(PAL_SUCCESS != pal_getSockAddrIPV6Addr(&_socket_address,_ipV6Addr)){
             _observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
             return;
         }
 
-        tr_debug("IP Address %s",tr_array(ipV6Addr,sizeof(ipV6Addr)));
+        tr_debug("IP Address %s",tr_array(_ipV6Addr,sizeof(_ipV6Addr)));
 
-        _address._address = (void*)ipV6Addr;
+        _address._address = (void*)_ipV6Addr;
         _address._length = PAL_IPV6_ADDRESS_SIZE;
         _address._port = _server_port;
         _address._stack = _network_stack;
-
     }
-
-
+    else {
+        tr_error("socket config error, %d", (int)_network_stack);
+        _observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
+        return;
+    }
 
     close_socket();
     if(!init_socket()) {
@@ -414,7 +412,7 @@ void M2MConnectionHandlerPimpl::stop_listening()
 int M2MConnectionHandlerPimpl::send_to_socket(const unsigned char *buf, size_t len)
 {
 
-    size_t sent_len = -1;
+    size_t sent_len = 0;
     palStatus_t status = PAL_ERR_GENERIC_FAILURE;
     
     tr_debug("send_to_socket len - %d", len);
