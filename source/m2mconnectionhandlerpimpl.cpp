@@ -204,7 +204,8 @@ void M2MConnectionHandlerPimpl::dns_handler()
     }
     pal_setSockAddrPort(&_socket_address, _server_port);
 
-    if(_network_stack == M2MInterface::LwIP_IPv4){
+    if(_network_stack == M2MInterface::LwIP_IPv4 ||
+       _network_stack == M2MInterface::ATWINC_IPv4){
 
 
         if(PAL_SUCCESS != pal_getSockAddrIPV4Addr(&_socket_address,_ipV4Addr)){
@@ -219,7 +220,8 @@ void M2MConnectionHandlerPimpl::dns_handler()
         _address._port = _server_port;
         _address._stack = _network_stack;
     }
-    else if(_network_stack == M2MInterface::LwIP_IPv6){
+    else if(_network_stack == M2MInterface::LwIP_IPv6 ||
+            _network_stack == M2MInterface::Nanostack_IPv6){
 
         if(PAL_SUCCESS != pal_getSockAddrIPV6Addr(&_socket_address,_ipV6Addr)){
             _observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
