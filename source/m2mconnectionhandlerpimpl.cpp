@@ -24,7 +24,6 @@
 #include "pal_errors.h"
 #include "pal_macros.h"
 #include "pal_network.h"
-#include "pal_plat_network.h"
 
 #include "eventOS_scheduler.h"
 #include "eventOS_event.h"
@@ -127,8 +126,6 @@ M2MConnectionHandlerPimpl::M2MConnectionHandlerPimpl(M2MConnectionHandler* base,
 
     memset(&_address, 0, sizeof _address);
     
-    _running = true;
-    
     connection_handler = this;
     
     eventOS_scheduler_mutex_wait();
@@ -143,10 +140,9 @@ M2MConnectionHandlerPimpl::~M2MConnectionHandlerPimpl()
 {
     tr_debug("~M2MConnectionHandlerPimpl()");
     stop_listening();
-    if (_socket) {//Is 0 a valid socket here? Hope not, so this will work and no need to modify.
-        pal_close(&_socket);
-        _socket = 0;
-    }
+
+    close_socket();
+
     delete _security_impl;
     tr_debug("~M2MConnectionHandlerPimpl() - OUT");
 }
@@ -241,6 +237,7 @@ void M2MConnectionHandlerPimpl::dns_handler()
 
     close_socket();
     if(!init_socket()) {
+        _observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
         return;
     }
 
@@ -302,7 +299,7 @@ bool M2MConnectionHandlerPimpl::send_data(uint8_t *data,
     arm_event_s event;
     
     tr_debug("send_data()");
-    if (address == NULL || data == NULL) {
+    if (address == NULL || data == NULL || !data_len || !_running) {
         return false;
     }
 
@@ -334,7 +331,13 @@ void M2MConnectionHandlerPimpl::send_socket_data(uint8_t *data, uint16_t data_le
     size_t sent_len;
     bool success = false;
     palStatus_t ret = PAL_ERR_GENERIC_FAILURE;
-    
+
+    if(!data || ! data_len || !_running)
+    {
+        return;
+    }   
+
+
     tr_debug("send_handler()");
     
     if( _use_secure_connection ){
@@ -390,7 +393,6 @@ bool M2MConnectionHandlerPimpl::start_listening_for_data()
     tr_debug("start_listening_for_data()");
 
     _listening = true;
-    _running = true;
     
     return true;
     
@@ -414,6 +416,11 @@ int M2MConnectionHandlerPimpl::send_to_socket(const unsigned char *buf, size_t l
 
     size_t sent_len = 0;
     palStatus_t status = PAL_ERR_GENERIC_FAILURE;
+
+    if(!_running)
+    {
+        return (-1);
+    }
     
     tr_debug("send_to_socket len - %d", len);
     
@@ -440,6 +447,11 @@ int M2MConnectionHandlerPimpl::receive_from_socket(unsigned char *buf, size_t le
     palStatus_t status = PAL_ERR_GENERIC_FAILURE;
     
     tr_debug("receive_from_socket");
+
+    if(!_running)
+    {
+        return (-1);
+    }
     
     if(is_tcp_connection()) {
 #ifdef PAL_NET_TCP_AND_TLS_SUPPORT
@@ -520,7 +532,7 @@ void M2MConnectionHandlerPimpl::receive_handler()
         return;
     }
 
-    if(!_listening) {
+    if(!_listening || !_running) {
         return;
     }
     
@@ -597,10 +609,10 @@ void M2MConnectionHandlerPimpl::receive_handler()
                 uint32_t len = (_recv_buffer[0] << 24 & 0xFF000000) + (_recv_buffer[1] << 16 & 0xFF0000);
                 len += (_recv_buffer[2] << 8 & 0xFF00) + (_recv_buffer[3] & 0xFF);
                 
-                if(len > 0 && len < recv) {
+                if(len > 0 && len <= recv - 4) {
     
                     // Observer for TCP plain mode
-                    _observer.data_available(_recv_buffer+4, len, _address);
+                    _observer.data_available(_recv_buffer + 4, len, _address);
     
                 }
 #endif //PAL_NET_TCP_AND_TLS_SUPPORT
@@ -653,10 +665,9 @@ bool M2MConnectionHandlerPimpl::init_socket()
     }else if(_network_stack == M2MInterface::LwIP_IPv6){
         domain = PAL_AF_INET6;
     }
-    else{
-        domain = PAL_AF_UNSPEC;
-    }
-    uint32_t interface_count;pal_getNumberOfNetInterfaces(&interface_count);
+
+    uint32_t interface_count;
+    pal_getNumberOfNetInterfaces(&interface_count);
     tr_debug("Interface count: %d",interface_count);
     pal_getNetInterfaceInfo(_net_iface, &interface_info);
     tr_debug("Interface name: %s",interface_info.interfaceName);
@@ -694,7 +705,7 @@ bool M2MConnectionHandlerPimpl::is_tcp_connection()
 void M2MConnectionHandlerPimpl::close_socket()
 {
     tr_debug("close_socket() - IN");
-    if(_socket) {
+    if(_running) {
        _running = false;
        pal_close(&_socket);
     }
