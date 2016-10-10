@@ -34,14 +34,6 @@ M2MTimerPimpl::~M2MTimerPimpl()
 {
 }
 
-void M2MTimerPimpl::timer_thread_start(void)
-{
-}
-
-void M2MTimerPimpl::timer_thread_delete(void)
-{
-}
-
 void M2MTimerPimpl::start_timer( uint64_t interval,
                                  M2MTimerObserver::Type type,
                                  bool single_shot)
@@ -67,10 +59,6 @@ void M2MTimerPimpl::stop_timer()
 }
 
 void M2MTimerPimpl::timer_expired()
-{
-}
-
-void M2MTimerPimpl::timer_thread_run(void)
 {
 }
 

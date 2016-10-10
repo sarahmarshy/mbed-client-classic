@@ -121,6 +121,7 @@ private:
     static int8_t       _next_timer_id;
 
     friend class M2MTimer;
+    friend class Test_M2MTimerPimpl_classic;
 };
 
 inline int8_t M2MTimerPimpl::get_timer_id() const

@@ -13,18 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef M2M_TIMER_PIMPL_STUB_H
-#define M2M_TIMER_PIMPL_STUB_H
+#ifndef TEST_M2M_TIMER_H
+#define TEST_M2M_TIMER_H
 
-#include "mbed-client-classic/m2mtimerpimpl.h"
+#include "m2mtimer.h"
 
-//some internal test related stuff
-namespace m2mtimerpimpl_stub
+class TestObserver;
+
+class Test_M2MTimer
 {
-    extern bool bool_value;
-    extern bool visited;
-    void clear();
-}
+public:
+    Test_M2MTimer();
 
-#endif // M2M_TIMER_IMPL_STUB_H
+    virtual ~Test_M2MTimer();
 
+    void test_start_timer();
+
+    void test_stop_timer();
+
+    void test_start_dtls_timer();
+
+    void test_is_intermediate_interval_passed();
+
+    void test_is_total_interval_passed();
+
+    M2MTimer* timer;
+    TestObserver* observer;
+};
+
+#endif // TEST_M2M_TIMER_H

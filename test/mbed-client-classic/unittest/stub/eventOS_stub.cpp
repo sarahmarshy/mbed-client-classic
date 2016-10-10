@@ -22,3 +22,12 @@ int8_t eventOS_event_send(arm_event_s *event)
     return eventOS_stub::int8_value;
 }
 
+extern "C" int8_t eventOS_event_timer_request(uint8_t snmessage, uint8_t event_type, int8_t tasklet_id, uint32_t time)
+{
+    return eventOS_stub::int8_value;
+}
+
+extern "C" int8_t eventOS_event_timer_cancel(uint8_t snmessage, int8_t tasklet_id)
+{
+    return eventOS_stub::int8_value;
+}

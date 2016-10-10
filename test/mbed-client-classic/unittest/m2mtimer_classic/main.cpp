@@ -13,18 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef M2M_TIMER_PIMPL_STUB_H
-#define M2M_TIMER_PIMPL_STUB_H
-
-#include "mbed-client-classic/m2mtimerpimpl.h"
-
-//some internal test related stuff
-namespace m2mtimerpimpl_stub
+#include "CppUTest/CommandLineTestRunner.h"
+#include "CppUTest/TestPlugin.h"
+#include "CppUTest/TestRegistry.h"
+#include "CppUTestExt/MockSupportPlugin.h"
+int main(int ac, char** av)
 {
-    extern bool bool_value;
-    extern bool visited;
-    void clear();
+	return CommandLineTestRunner::RunAllTests(ac, av);
 }
 
-#endif // M2M_TIMER_IMPL_STUB_H
-
+IMPORT_TEST_GROUP( M2MTimer);
