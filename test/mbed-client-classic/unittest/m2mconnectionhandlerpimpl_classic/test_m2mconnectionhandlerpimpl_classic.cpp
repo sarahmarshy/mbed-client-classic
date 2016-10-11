@@ -16,9 +16,9 @@
 #include "CppUTest/TestHarness.h"
 #include "test_m2mconnectionhandlerpimpl_classic.h"
 #include "mbed-client-classic/m2mconnectionhandlerpimpl.h"
+#include "mbed-client/m2mconnectionhandler.h"
 #include "m2mconnectionobserver.h"
 #include "m2msecurity.h"
-#include "common_stub.h"
 #include "m2mconnectionsecurity_stub.h"
 #include "m2msecurity_stub.h"
 #include "eventOS_stub.h"
@@ -67,7 +67,6 @@ Test_M2MConnectionHandlerPimpl_classic::Test_M2MConnectionHandlerPimpl_classic()
 {
     observer = new M2MConnection_TestObserver();
     m2mconnectionsecurityimpl_stub::clear();
-    common_stub::int_value = 0;
     pal_network_stub::void_value = NULL;
     pal_network_stub::change_status_count = 0;
 

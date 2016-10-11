@@ -16,7 +16,6 @@
 #include "m2mconnectionhandlerpimpl_stub.h"
 #include "mbed-client-classic/m2mconnectionhandlerpimpl.h"
 #include "m2mconnectionsecurity.h"
-#include "common_stub.h"
 
 int m2mconnectionhandlerpimpl_stub::int_value;
 uint16_t m2mconnectionhandlerpimpl_stub::uint_value;

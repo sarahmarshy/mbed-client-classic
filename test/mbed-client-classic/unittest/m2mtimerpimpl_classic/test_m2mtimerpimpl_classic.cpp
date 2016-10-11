@@ -15,7 +15,6 @@
  */
 #include "CppUTest/TestHarness.h"
 #include "test_m2mtimerpimpl_classic.h"
-#include "common_stub.h"
 #include "eventOS_event.h"
 #include <unistd.h>
 

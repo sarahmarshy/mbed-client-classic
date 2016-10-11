@@ -8,7 +8,6 @@ TEST_SRC_FILES = \
 	main.cpp \
         m2mtimerpimpl_classic_test.cpp \
         test_m2mtimerpimpl_classic.cpp \
-        ../stub/common_stub.cpp \
         ../stub/m2mstring_stub.cpp \
         ../stub/ns_hal_init_stub.cpp \
         ../stub/eventOS_stub.cpp \
