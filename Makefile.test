@@ -15,13 +15,13 @@ COVERAGEFILE := ./lcov/coverage.info
 clone:
 	@rm -rf ./test_modules
 	@mkdir -p test_modules
-	@git clone git@github.com:ARMmbed/nanostack-hal-mbed-cmsis-rtos.git ./test_modules/nanostack-hal-mbed-cmsis-rtos
-	@git clone git@github.com:ARMmbed/mbed-trace.git ./test_modules/mbed-trace
-	@git clone git@github.com:ARMmbed/sal-stack-nanostack-eventloop.git ./test_modules/sal-stack-nanostack-eventloop
-	@git clone git@github.com:ARMmbed/nanostack-libservice.git ./test_modules/nanostack-libservice
-	@git clone git@github.com:ARMmbed/mbed-client-c.git ./test_modules/mbed-client-c
-	@git clone git@github.com:ARMmbed/mbed-client.git ./test_modules/mbed-client
-	@git clone git@github.com:ARMmbed/mbed-client-pal.git ./test_modules/mbed-client-pal
+	@git clone --depth 1 git@github.com:ARMmbed/nanostack-hal-mbed-cmsis-rtos.git ./test_modules/nanostack-hal-mbed-cmsis-rtos
+	@git clone --depth 1 git@github.com:ARMmbed/mbed-trace.git ./test_modules/mbed-trace
+	@git clone --depth 1 git@github.com:ARMmbed/sal-stack-nanostack-eventloop.git ./test_modules/sal-stack-nanostack-eventloop
+	@git clone --depth 1 git@github.com:ARMmbed/nanostack-libservice.git ./test_modules/nanostack-libservice
+	@git clone --depth 1 git@github.com:ARMmbed/mbed-client-c.git ./test_modules/mbed-client-c
+	@git clone --depth 1 git@github.com:ARMmbed/mbed-client.git ./test_modules/mbed-client
+	@git clone --depth 1 git@github.com:ARMmbed/mbed-client-pal.git ./test_modules/mbed-client-pal
 
 .PHONY: test
 test: $(TESTDIRS)
