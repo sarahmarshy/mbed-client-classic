@@ -8,7 +8,6 @@ TEST_SRC_FILES = \
 	main.cpp \
         m2mconnectionhandlerpimpl_classic_test.cpp \
         test_m2mconnectionhandlerpimpl_classic.cpp \
-       ../stub/nsdlaccesshelper_stub.cpp \
        ../stub/m2msecurity_stub.cpp \
        ../stub/m2mconnectionsecurity_stub.cpp \
        ../stub/m2mstring_stub.cpp \

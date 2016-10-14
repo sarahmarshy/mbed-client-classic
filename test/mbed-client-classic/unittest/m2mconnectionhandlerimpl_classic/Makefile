@@ -9,10 +9,8 @@ TEST_SRC_FILES = \
         m2mconnectionhandlerimpl_classic_test.cpp \
         test_m2mconnectionhandlerimpl_classic.cpp \
        ../stub/m2mconnectionhandlerpimpl_stub.cpp \
-       ../stub/nsdlaccesshelper_stub.cpp \
-       ../stub/m2mstring_stub.cpp \
        ../stub/m2mconnectionsecurity_stub.cpp \
-
+        ../stub/m2mstring_stub.cpp \
 
 include ../MakefileWorker.mk
 

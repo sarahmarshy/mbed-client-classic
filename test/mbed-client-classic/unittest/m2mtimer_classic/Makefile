@@ -9,7 +9,5 @@ TEST_SRC_FILES = \
         m2mtimertest.cpp \
         test_m2mtimer.cpp \
         ../stub/m2mtimerpimpl_stub.cpp \
-        ../stub/m2mstring_stub.cpp \
-
 
 include ../MakefileWorker.mk
