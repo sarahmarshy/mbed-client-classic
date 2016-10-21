@@ -248,6 +248,7 @@ private:
 
 friend class Test_M2MConnectionHandlerPimpl;
 friend class Test_M2MConnectionHandlerPimpl_mbed;
+friend class Test_M2MConnectionHandlerPimpl_classic;
 friend class M2MConnection_TestObserver;
 };
 
