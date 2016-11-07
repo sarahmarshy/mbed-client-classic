@@ -24,7 +24,7 @@ INCLUDE_DIRS =\
   ../../../../test_modules/nanostack-libservice/mbed-client-libservice\
   ../../../../test_modules/sal-stack-nanostack-eventloop/nanostack-event-loop/\
   ../../../../test_modules/mbed-trace\
-  ../../../../test_modules/nanostack-hal-mbed-cmsis-rtos\
+  ../../../../test_modules/mbed-os/features/FEATURE_COMMON_PAL/nanostack-hal-mbed-cmsis-rtos\
   /usr/include\
   $(CPPUTEST_HOME)/include\
 
