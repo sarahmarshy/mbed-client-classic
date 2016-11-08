@@ -468,7 +468,7 @@ int M2MConnectionHandlerPimpl::receive_from_socket(unsigned char *buf, size_t le
     if(status == PAL_SUCCESS){
         return recv_len;
     }
-    else if(status == PAL_ERR_SOCKET_WOULD_BLOCK || status == (-65536)){
+    else if(status == PAL_ERR_SOCKET_WOULD_BLOCK){
         return M2MConnectionHandler::CONNECTION_ERROR_WANTS_READ;
     }
     else
