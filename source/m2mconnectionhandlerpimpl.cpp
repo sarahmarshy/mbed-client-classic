@@ -328,7 +328,7 @@ void M2MConnectionHandlerPimpl::send_socket_data(uint8_t *data, uint16_t data_le
             uint8_t* d = (uint8_t*)malloc(data_len+4);
             if(d){
                 d[0] = 0;
-                d[1] = (data_len >> 16 )& 0xff;
+                d[1] = 0;
                 d[2] = (data_len >> 8 )& 0xff;
                 d[3] = data_len & 0xff;
                 memcpy(d + 4, data, data_len);
@@ -564,7 +564,7 @@ bool M2MConnectionHandlerPimpl::init_socket()
     _running = true;
     palSocketType_t socket_type = PAL_SOCK_DGRAM;
     palStatus_t status;
-    palSocketDomain_t domain;
+    palSocketDomain_t domain = PAL_AF_UNSPEC;
     palSocketAddress_t bind_address;
 
     if(is_tcp_connection()) {
