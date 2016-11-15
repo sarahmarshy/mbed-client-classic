@@ -564,7 +564,7 @@ bool M2MConnectionHandlerPimpl::init_socket()
     _running = true;
     palSocketType_t socket_type = PAL_SOCK_DGRAM;
     palStatus_t status;
-    palSocketDomain_t domain = PAL_AF_UNSPEC;
+    palSocketDomain_t domain;
     palSocketAddress_t bind_address;
 
     if(is_tcp_connection()) {
@@ -580,6 +580,8 @@ bool M2MConnectionHandlerPimpl::init_socket()
         domain = PAL_AF_INET;
     } else if(_network_stack == M2MInterface::LwIP_IPv6){
         domain = PAL_AF_INET6;
+    } else {
+        domain = PAL_AF_UNSPEC;
     }
 
     uint32_t interface_count;
