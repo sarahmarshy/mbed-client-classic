@@ -191,6 +191,15 @@ public:
     void send_receive_event(void);
 
 
+    volatile unsigned                           _ctr_event_socket_ready;
+    volatile unsigned                           _ctr_event_socket_ready_handled;
+    volatile unsigned                           _ctr_event_socket_ready_error;
+    volatile unsigned                           _ctr_event_socket_send;
+    volatile unsigned                           _ctr_event_socket_send_handled;
+    volatile unsigned                           _ctr_event_socket_send_error;
+    volatile unsigned                           _ctr_event_dns;
+    volatile unsigned                           _ctr_event_dns_handled;
+    volatile unsigned                           _ctr_event_dns_error;
 private:
 
     /**

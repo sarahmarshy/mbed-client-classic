@@ -42,19 +42,37 @@ extern "C" void connection_event_handler(arm_event_s *event)
     if(!connection_handler){
         return;
     }
+    tr_debug("Event counters:");
+    tr_debug("  ESocketReadytoRead %d, %d, %d",
+             connection_handler->_ctr_event_socket_ready,
+             connection_handler->_ctr_event_socket_ready_handled,
+             connection_handler->_ctr_event_socket_ready_error);
+    tr_debug("  ESocketSend %d, %d, %d",
+             connection_handler->_ctr_event_socket_send,
+             connection_handler->_ctr_event_socket_send_handled,
+             connection_handler->_ctr_event_socket_send_error);
+    tr_debug("  ESocketDnsHandler %d, %d, %d",
+             connection_handler->_ctr_event_dns,
+             connection_handler->_ctr_event_dns_handled,
+             connection_handler->_ctr_event_dns_error);
 
     switch(event->event_type){
         case M2MConnectionHandlerPimpl::ESocketReadytoRead:
             connection_handler->receive_handler();
+            connection_handler->_ctr_event_socket_ready_handled++;
             break;
 
         case M2MConnectionHandlerPimpl::ESocketSend:
+
+            tr_debug("ESocketSend - %p", event->data_ptr);
             connection_handler->send_socket_data((uint8_t*)event->data_ptr, event->event_data);
             free(event->data_ptr);
+            connection_handler->_ctr_event_socket_send_handled++;
             break;
 
         case M2MConnectionHandlerPimpl::ESocketDnsHandler:
             connection_handler->dns_handler();
+            connection_handler->_ctr_event_dns_handled++;
             break;
 
         default:
@@ -70,7 +88,13 @@ void M2MConnectionHandlerPimpl::send_receive_event(void)
     event.event_type = ESocketReadytoRead;
     event.data_ptr = NULL;
     event.priority = ARM_LIB_HIGH_PRIORITY_EVENT;
-    eventOS_event_send(&event);
+    if (eventOS_event_send(&event) != 0) {
+        _ctr_event_socket_ready_error++;
+    }
+    else {
+        _ctr_event_socket_ready++;
+    }
+
 }
 
 extern "C" void socket_event_handler(void)
@@ -99,7 +123,16 @@ M2MConnectionHandlerPimpl::M2MConnectionHandlerPimpl(M2MConnectionHandler* base,
  _server_port(0),
  _listen_port(0),
  _running(false),
- _net_iface(0)
+ _net_iface(0),
+ _ctr_event_socket_ready(0),
+ _ctr_event_socket_ready_handled(0),
+ _ctr_event_socket_ready_error(0),
+ _ctr_event_socket_send(0),
+ _ctr_event_socket_send_handled(0),
+ _ctr_event_socket_send_error(0),
+ _ctr_event_dns(0),
+ _ctr_event_dns_handled(0),
+ _ctr_event_dns_error(0)
 {
 #ifndef PAL_NET_TCP_AND_TLS_SUPPORT
     if (is_tcp_connection()) {
@@ -158,8 +191,15 @@ bool M2MConnectionHandlerPimpl::resolve_server_address(const String& server_addr
     event.event_type = ESocketDnsHandler;
     event.data_ptr = NULL;
     event.priority = ARM_LIB_HIGH_PRIORITY_EVENT;
+    int8_t result = eventOS_event_send(&event);
+    if (result != 0) {
+        _ctr_event_dns_error++;
+    }
+    else {
+        _ctr_event_dns++;
+    }
+    return !result;
 
-    return !eventOS_event_send(&event);
 }
 
 void M2MConnectionHandlerPimpl::dns_handler()
@@ -297,10 +337,13 @@ bool M2MConnectionHandlerPimpl::send_data(uint8_t *data,
     event.priority = ARM_LIB_HIGH_PRIORITY_EVENT;
 
     if (eventOS_event_send(&event) != 0) {
+        _ctr_event_socket_send_error++;
         // Event push failed, free the buffer
         free(event.data_ptr);
         return false;
     }
+    tr_debug("send_data() - %p", event.data_ptr);
+    _ctr_event_socket_send++;
 
     return true;
 }
