@@ -252,6 +252,7 @@ void M2MConnectionHandlerPimpl::dns_handler()
 
                     _is_handshaking = true;
                     tr_debug("resolve_server_address - connect DTLS");
+                    send_receive_event();
 
                 } else {
                     tr_error("resolve_server_address - init failed");
