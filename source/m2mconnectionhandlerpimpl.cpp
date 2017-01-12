@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 ARM Limited. All rights reserved.
+ * Copyright (c) 2015 - 2017 ARM Limited. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  * Licensed under the Apache License, Version 2.0 (the License); you may
  * not use this file except in compliance with the License.
@@ -27,6 +27,7 @@
 
 #include "eventOS_scheduler.h"
 #include "eventOS_event.h"
+#include "eventOS_event_timer.h"
 
 #include "mbed-trace/mbed_trace.h"
 #include "mbed.h"
@@ -162,6 +163,11 @@ bool M2MConnectionHandlerPimpl::resolve_server_address(const String& server_addr
     return !eventOS_event_send(&event);
 }
 
+void connection_thread(const void *data)
+{
+    ((M2MConnectionHandlerPimpl*)data)->receive_handler();
+}
+
 void M2MConnectionHandlerPimpl::dns_handler()
 {
     palStatus_t status;
@@ -237,20 +243,16 @@ void M2MConnectionHandlerPimpl::dns_handler()
     _running = true;
 
     if (_security) {
+        _use_secure_connection = true;
         if (_security->resource_value_int(M2MSecurity::SecurityMode) == M2MSecurity::Certificate ||
             _security->resource_value_int(M2MSecurity::SecurityMode) == M2MSecurity::Psk) {
             if( _security_impl != NULL ){
                 _security_impl->reset();
                 if (_security_impl->init(_security) == 0) {
+
                     _is_handshaking = true;
                     tr_debug("resolve_server_address - connect DTLS");
-                    if(_security_impl->start_connecting_non_blocking(_base) < 0 ){
-                        tr_debug("dns_handler - handshake failed");
-                        _is_handshaking = false;
-                        _observer.socket_error(M2MConnectionHandler::SSL_CONNECTION_ERROR);
-                        close_socket();
-                        return;
-                    }
+
                 } else {
                     tr_error("resolve_server_address - init failed");
                     _observer.socket_error(M2MConnectionHandler::SSL_CONNECTION_ERROR, false);
@@ -271,6 +273,7 @@ void M2MConnectionHandlerPimpl::dns_handler()
                                 _server_type,
                                 _address._port);
     }
+
 }
 
 bool M2MConnectionHandlerPimpl::send_data(uint8_t *data,
@@ -443,26 +446,33 @@ void M2MConnectionHandlerPimpl::set_platform_network_handler(void *handler)
 
 void M2MConnectionHandlerPimpl::receive_handshake_handler()
 {
+    int return_value;
     tr_debug("receive_handshake_handler()");
+
     if( _is_handshaking ){
-        int ret = _security_impl->continue_connecting();
-        tr_debug("ret %d", ret);
-        if( ret == M2MConnectionHandler::CONNECTION_ERROR_WANTS_READ ){ //We wait for next readable event
-            tr_debug("We wait for next readable event");
-            return;
-        } else if( ret == 0 ){
+
+        return_value = _security_impl->connect(_base);
+
+        if(!return_value){
+
             _is_handshaking = false;
             _use_secure_connection = true;
             enable_keepalive();
             _observer.address_ready(_address,
                                     _server_type,
                                     _server_port);
-        } else if( ret < 0 ){
+
+        }
+        else if(return_value != M2MConnectionHandler::CONNECTION_ERROR_WANTS_READ){
+
             _is_handshaking = false;
             _observer.socket_error(M2MConnectionHandler::SSL_CONNECTION_ERROR, true);
             close_socket();
+
         }
+
     }
+
 }
 
 bool M2MConnectionHandlerPimpl::is_handshake_ongoing()
@@ -472,73 +482,76 @@ bool M2MConnectionHandlerPimpl::is_handshake_ongoing()
 
 void M2MConnectionHandlerPimpl::receive_handler()
 {
-    tr_debug("receive_handler()");
+    //tr_debug("receive_handler()");
+
     if(_is_handshaking){
         receive_handshake_handler();
-        return;
     }
 
-    if(!_listening || !_running) {
-        return;
-    }
 
-    if( _use_secure_connection ){
-        int rcv_size;
-        do{
-            rcv_size = _security_impl->read(_recv_buffer, sizeof(_recv_buffer));
-            if(rcv_size > 0){
-                _observer.data_available((uint8_t*)_recv_buffer,
-                                         rcv_size, _address);
-            } else if (M2MConnectionHandler::CONNECTION_ERROR_WANTS_READ != rcv_size && rcv_size < 0) {
-                _observer.socket_error(M2MConnectionHandler::SOCKET_READ_ERROR, true);
-                close_socket();
-                return;
-            }
-        } while(M2MConnectionHandler::CONNECTION_ERROR_WANTS_READ != rcv_size);
-    } else{
-        size_t recv;
-        palStatus_t status;
-        do{
-            if(is_tcp_connection()){
-#ifdef PAL_NET_TCP_AND_TLS_SUPPORT
-                status = pal_recv(_socket, _recv_buffer, sizeof(_recv_buffer), &recv);
-#endif //PAL_NET_TCP_AND_TLS_SUPPORT
-            } else{
-                status = pal_receiveFrom(_socket, _recv_buffer, sizeof(_recv_buffer), NULL, NULL, &recv);
-            }
+    else if(_listening && _running){
 
-            if(status == PAL_ERR_SOCKET_WOULD_BLOCK){
-                return;
-            }
-            else if (status != PAL_SUCCESS) {
-                _observer.socket_error(M2MConnectionHandler::SOCKET_READ_ERROR, true);
-                close_socket();
-                return;
-            }
-
-            tr_debug("data received, len: %zu", recv);
-
-            if(!is_tcp_connection()){ // Observer for UDP plain mode
-                _observer.data_available((uint8_t*)_recv_buffer, recv, _address);
-            } else {
-#ifdef PAL_NET_TCP_AND_TLS_SUPPORT
-                if( recv < 4 ){
+        if( _use_secure_connection ){
+            int rcv_size;
+            //do{
+                rcv_size = _security_impl->read(_recv_buffer, sizeof(_recv_buffer));
+                if(rcv_size > 0){
+                    _observer.data_available((uint8_t*)_recv_buffer,
+                                             rcv_size, _address);
+                } else if (M2MConnectionHandler::CONNECTION_ERROR_WANTS_READ != rcv_size && rcv_size < 0) {
                     _observer.socket_error(M2MConnectionHandler::SOCKET_READ_ERROR, true);
                     close_socket();
                     return;
                 }
 
-                //We need to "shim" out the length from the front
-                uint32_t len = (_recv_buffer[0] << 24 & 0xFF000000) + (_recv_buffer[1] << 16 & 0xFF0000);
-                len += (_recv_buffer[2] << 8 & 0xFF00) + (_recv_buffer[3] & 0xFF);
-                if(len > 0 && len <= recv - 4) {
-                    // Observer for TCP plain mode
-                    _observer.data_available(_recv_buffer + 4, len, _address);
-                }
+            //} while(M2MConnectionHandler::CONNECTION_ERROR_WANTS_READ != rcv_size);
+        } else{
+            size_t recv;
+            palStatus_t status;
+            //do{
+                if(is_tcp_connection()){
+#ifdef PAL_NET_TCP_AND_TLS_SUPPORT
+                    status = pal_recv(_socket, _recv_buffer, sizeof(_recv_buffer), &recv);
 #endif //PAL_NET_TCP_AND_TLS_SUPPORT
-            }
-        } while(status != PAL_ERR_SOCKET_WOULD_BLOCK);
+                } else{
+                    status = pal_receiveFrom(_socket, _recv_buffer, sizeof(_recv_buffer), NULL, NULL, &recv);
+                }
+
+                if(status == PAL_ERR_SOCKET_WOULD_BLOCK){
+                    return;
+                }
+                else if (status != PAL_SUCCESS) {
+                    _observer.socket_error(M2MConnectionHandler::SOCKET_READ_ERROR, true);
+                    close_socket();
+                    return;
+                }
+
+                tr_debug("data received, len: %zu", recv);
+
+                if(!is_tcp_connection()){ // Observer for UDP plain mode
+                    _observer.data_available((uint8_t*)_recv_buffer, recv, _address);
+                } else {
+#ifdef PAL_NET_TCP_AND_TLS_SUPPORT
+                    if( recv < 4 ){
+                        _observer.socket_error(M2MConnectionHandler::SOCKET_READ_ERROR, true);
+                        close_socket();
+                        return;
+                    }
+
+                    //We need to "shim" out the length from the front
+                    uint32_t len = (_recv_buffer[0] << 24 & 0xFF000000) + (_recv_buffer[1] << 16 & 0xFF0000);
+                    len += (_recv_buffer[2] << 8 & 0xFF00) + (_recv_buffer[3] & 0xFF);
+                    if(len > 0 && len <= recv - 4) {
+                        // Observer for TCP plain mode
+                        _observer.data_available(_recv_buffer + 4, len, _address);
+                    }
+#endif //PAL_NET_TCP_AND_TLS_SUPPORT
+                }
+            //} while(status != PAL_ERR_SOCKET_WOULD_BLOCK);
+        }
+
     }
+
 }
 
 void M2MConnectionHandlerPimpl::claim_mutex()
@@ -607,6 +620,8 @@ bool M2MConnectionHandlerPimpl::init_socket()
     pal_setSockAddrPort(&bind_address, _listen_port);
     pal_bind(_socket, &bind_address, sizeof(bind_address));
 
+    _security_impl->set_socket(_socket, &_socket_address);
+
     tr_debug("init_socket - OUT");
     return true;
 }
@@ -638,3 +653,4 @@ void M2MConnectionHandlerPimpl::enable_keepalive()
 #endif
 #endif
 }
+
