@@ -471,6 +471,9 @@ void M2MConnectionHandlerPimpl::receive_handshake_handler()
             close_socket();
 
         }
+        else{
+            eventOS_event_timer_request(ESocketReadytoRead, ESocketReadytoRead, M2MConnectionHandlerPimpl::_tasklet_id, 1000);
+        }
 
     }
 
