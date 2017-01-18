@@ -244,6 +244,7 @@ private:
     palSocketAddress_t                          _socket_address;
     static int8_t                               _tasklet_id;
     String                                      _server_address;
+    uint8_t                                     _handshake_retry;
 
 friend class Test_M2MConnectionHandlerPimpl;
 friend class Test_M2MConnectionHandlerPimpl_mbed;

@@ -34,6 +34,10 @@
 
 #define TRACE_GROUP "mClt"
 
+#ifdef CONNECTION_TLS_MAX_RETRY
+#define CONNECTION_TLS_MAX_RETRY 60
+#endif
+
 int8_t M2MConnectionHandlerPimpl::_tasklet_id = -1;
 
 static M2MConnectionHandlerPimpl *connection_handler = NULL;
@@ -71,7 +75,9 @@ void M2MConnectionHandlerPimpl::send_receive_event(void)
     event.event_type = ESocketReadytoRead;
     event.data_ptr = NULL;
     event.priority = ARM_LIB_HIGH_PRIORITY_EVENT;
-    eventOS_event_send(&event);
+    if(eventOS_event_send(&event)){
+        _observer.socket_error(M2MConnectionHandler::SOCKET_READ_ERROR, true);
+    }
 }
 
 extern "C" void socket_event_handler(void)
@@ -100,7 +106,8 @@ M2MConnectionHandlerPimpl::M2MConnectionHandlerPimpl(M2MConnectionHandler* base,
  _server_port(0),
  _listen_port(0),
  _running(false),
- _net_iface(0)
+ _net_iface(0),
+ _handshake_retry(0)
 {
 #ifndef PAL_NET_TCP_AND_TLS_SUPPORT
     if (is_tcp_connection()) {
@@ -456,6 +463,7 @@ void M2MConnectionHandlerPimpl::receive_handshake_handler()
 
         if(!return_value){
 
+            _handshake_retry = 0;
             _is_handshaking = false;
             _use_secure_connection = true;
             enable_keepalive();
@@ -466,13 +474,25 @@ void M2MConnectionHandlerPimpl::receive_handshake_handler()
         }
         else if(return_value != M2MConnectionHandler::CONNECTION_ERROR_WANTS_READ){
 
+            _handshake_retry = 0;
             _is_handshaking = false;
             _observer.socket_error(M2MConnectionHandler::SSL_CONNECTION_ERROR, true);
             close_socket();
 
         }
         else{
+
+            if(_handshake_retry++ > CONNECTION_TLS_MAX_RETRY){
+
+                _handshake_retry = 0;
+                _is_handshaking = false;
+                _observer.socket_error(M2MConnectionHandler::SSL_CONNECTION_ERROR, true);
+                close_socket();
+
+            }
+            eventOS_event_timer_cancel(ESocketReadytoRead, M2MConnectionHandlerPimpl::_tasklet_id);
             eventOS_event_timer_request(ESocketReadytoRead, ESocketReadytoRead, M2MConnectionHandlerPimpl::_tasklet_id, 1000);
+
         }
 
     }
