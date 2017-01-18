@@ -34,7 +34,7 @@
 
 #define TRACE_GROUP "mClt"
 
-#ifdef CONNECTION_TLS_MAX_RETRY
+#ifndef CONNECTION_TLS_MAX_RETRY
 #define CONNECTION_TLS_MAX_RETRY 60
 #endif
 
