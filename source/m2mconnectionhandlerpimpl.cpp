@@ -208,10 +208,12 @@ void M2MConnectionHandlerPimpl::dns_handler()
     uint32_t interface_count;
     status = pal_getNumberOfNetInterfaces(&interface_count);
     if(PAL_SUCCESS != status ) {
+        tr_error("Could not get PAL network interfaces!");
         _observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
         return;
     }
     if(interface_count <= 0) {
+        tr_error("No PAL network interfaces!");
         _observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
         return;
     }
@@ -219,6 +221,7 @@ void M2MConnectionHandlerPimpl::dns_handler()
     palSocketLength_t _socket_address_len;
 
     if(PAL_SUCCESS != pal_getAddressInfo(_server_address.c_str(), &_socket_address, &_socket_address_len)){
+        tr_error("Could not resolve address!");
         _observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
         return;
     }
@@ -227,6 +230,7 @@ void M2MConnectionHandlerPimpl::dns_handler()
     if(_network_stack == M2MInterface::LwIP_IPv4 ||
        _network_stack == M2MInterface::ATWINC_IPv4){
         if(PAL_SUCCESS != pal_getSockAddrIPV4Addr(&_socket_address,_ipV4Addr)){
+            tr_error("Could not ipv4 address fail!");
             _observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
             return;
         }
@@ -241,6 +245,7 @@ void M2MConnectionHandlerPimpl::dns_handler()
     else if(_network_stack == M2MInterface::LwIP_IPv6 ||
             _network_stack == M2MInterface::Nanostack_IPv6){
         if(PAL_SUCCESS != pal_getSockAddrIPV6Addr(&_socket_address,_ipV6Addr)){
+            tr_error("Could not ipv address fail!");
             _observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
             return;
         }
