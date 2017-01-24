@@ -29,7 +29,8 @@
 #include "eventOS_event.h"
 
 #include "mbed-trace/mbed_trace.h"
-#include "mbed.h"
+//#include "mbed.h"
+#include "malloc.h"
 
 #define TRACE_GROUP "mClt"
 
