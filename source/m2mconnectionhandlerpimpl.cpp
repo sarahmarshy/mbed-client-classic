@@ -219,6 +219,7 @@ void M2MConnectionHandlerPimpl::dns_handler()
     }
 
     palSocketLength_t _socket_address_len;
+    close_socket();
 
     if(PAL_SUCCESS != pal_getAddressInfo(_server_address.c_str(), &_socket_address, &_socket_address_len)){
         tr_error("Could not resolve address!");
@@ -263,7 +264,6 @@ void M2MConnectionHandlerPimpl::dns_handler()
         return;
     }
 
-    close_socket();
     if(!init_socket()) {
         _observer.socket_error(M2MConnectionHandler::SOCKET_ABORT);
         return;
